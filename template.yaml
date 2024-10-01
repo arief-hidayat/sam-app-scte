@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+    sam-app-scte
+
+    Powertools example
+
+Globals: # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-specification-template-anatomy-globals.html
+    Function:
+        Timeout: 5
+        MemorySize: 128
+        Runtime: python3.12
+
+Resources:
+    UpdateChannelSpliceFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+            Handler: app.lambda_handler
+            CodeUri: update_channel_splice/
+            Runtime: python3.12
+            Architectures:
+                - x86_64
+            Tracing: Active
+            Events:
+                UpdateChannelApi:
+                    Type: Api
+                    Properties:
+                        Path: /channels/{channelId}
+                        Method: PUT
+            Policies:
+                - DynamoDBCrudPolicy:
+                      TableName: !Ref ChannelSpliceTable
+                - Statement:
+                      - Effect: Allow
+                        Action:
+                            - medialive:BatchUpdateSchedule
+                        Resource: "*"
+                - Statement:
+                      - Effect: Allow
+                        Action:
+                            - logs:CreateLogGroup
+                            - logs:CreateLogStream
+                            - logs:PutLogEvents
+                        Resource: "*"
+            Environment:
+                Variables:
+                    POWERTOOLS_SERVICE_NAME: PowertoolsHelloWorld
+                    POWERTOOLS_METRICS_NAMESPACE: Powertools
+                    LOG_LEVEL: INFO
+                    CHANNEL_SPLICE_TABLE: !Ref ChannelSpliceTable
+                    POWERTOOLS_LOGGER_LOG_EVENT: TRUE
+            Tags:
+                LambdaPowertools: python
+
+    ChannelSpliceTable:
+        Type: AWS::DynamoDB::Table
+        Properties:
+            AttributeDefinitions:
+                - AttributeName: channelId
+                  AttributeType: S
+            KeySchema:
+                - AttributeName: channelId
+                  KeyType: HASH
+            BillingMode: PAY_PER_REQUEST
+
+
+Outputs:
+    HelloWorldApi:
+      Description: "API Gateway endpoint URL for Prod environment for UpdateChannelSpliceFunction"
+      Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/channels"
+
+    HelloWorldFunction:
+      Description: "UpdateChannelSpliceFunction ARN"
+      Value: !GetAtt UpdateChannelSpliceFunction.Arn
+
